@@ -1,0 +1,99 @@
+from app.graph.state import AgentState
+from app.services.anthropic_service import extract_profile_from_cv, generate_search_queries
+from app.services.embedding_service import get_embeddings
+from app.vectorstore.faiss_store import vector_store
+from app.services.tavily_service import search_jobs
+from app.services.evaluator_service import rank_jobs
+from app.models.schemas import CandidateProfile
+from app.utils.helpers import setup_logger
+
+logger = setup_logger("nodes")
+
+def parse_cv_node(state: AgentState):
+    logger.info("Executing parse_cv_node")
+    # Assuming text is already extracted and in state["cv_text"]
+    return state
+
+def extract_profile_node(state: AgentState):
+    logger.info("Executing extract_profile_node")
+    if state.get("candidate_profile"):
+        logger.info("Profile already exists in state, skipping extraction.")
+        return state
+        
+    profile = extract_profile_from_cv(state["cv_text"])
+    state["candidate_profile"] = profile.model_dump()
+    return state
+
+def chunk_cv_node(state: AgentState):
+    logger.info("Executing chunk_cv_node")
+    text = state["cv_text"]
+    # Simple chunking by max chars
+    chunks = [text[i:i+500] for i in range(0, len(text), 500)]
+    state["chunks"] = chunks
+    return state
+
+def generate_embeddings_node(state: AgentState):
+    logger.info("Executing generate_embeddings_node")
+    chunks = state.get("chunks", [])
+    if chunks:
+        embeddings = get_embeddings(chunks)
+        state["embeddings"] = embeddings
+    else:
+        state["embeddings"] = []
+    return state
+
+def store_faiss_node(state: AgentState):
+    logger.info("Executing store_faiss_node")
+    embeddings = state.get("embeddings", [])
+    chunks = state.get("chunks", [])
+    if embeddings and chunks:
+        vector_store.add_embeddings(embeddings, chunks)
+    return state
+
+def generate_queries_node(state: AgentState):
+    logger.info("Executing generate_queries_node")
+    profile = CandidateProfile(**state.get("candidate_profile", {}))
+    queries = generate_search_queries(profile)
+    state["search_queries"] = queries
+    return state
+
+def tavily_search_node(state: AgentState):
+    logger.info("Executing tavily_search_node")
+    queries = state.get("search_queries", [])
+    all_jobs = []
+    
+    for q in queries[:2]:
+        jobs = search_jobs(q, max_results=3)
+        all_jobs.extend(jobs)
+    
+    unique_jobs = {job.get('url'): job for job in all_jobs if job.get('url')}
+    state["jobs"] = list(unique_jobs.values())
+    return state
+
+def evaluate_jobs_node(state: AgentState):
+    logger.info("Executing evaluate_jobs_node")
+    # Pass through
+    state["evaluated_jobs"] = state.get("jobs", [])
+    return state
+
+def rank_jobs_node(state: AgentState):
+    logger.info("Executing rank_jobs_node")
+    jobs = state.get("evaluated_jobs", [])
+    profile = CandidateProfile(**state.get("candidate_profile", {}))
+    ranked = rank_jobs(jobs, profile)
+    state["ranked_jobs"] = [r.model_dump() for r in ranked]
+    return state
+
+def format_response_node(state: AgentState):
+    logger.info("Executing format_response_node")
+    ranked_jobs = state.get("ranked_jobs", [])
+    output_format = state.get("output_format", "json")
+    
+    if output_format == "json":
+        state["final_output"] = ranked_jobs
+    else:
+        text_out = "Here are your job recommendations based on your profile:\n\n"
+        for i, r in enumerate(ranked_jobs):
+            text_out += f"{i+1}. {r.get('title')} at {r.get('company')} is a {r.get('match_percentage')}% match because {r.get('reasoning')}\n"
+        state["final_output"] = text_out
+    return state

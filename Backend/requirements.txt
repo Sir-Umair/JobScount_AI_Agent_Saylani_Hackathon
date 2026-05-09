@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-anthropic
+anthropic
+python-dotenv
+faiss-cpu
+sentence-transformers
+pymupdf
+python-docx
+tavily-python
+pydantic
+pydantic-settings
+python-multipart
+motor
