@@ -26,25 +26,17 @@ def build_graph():
     # Add nodes
     workflow.add_node("parse_cv_node", parse_cv_node)
     workflow.add_node("extract_profile_node", extract_profile_node)
-    workflow.add_node("chunk_cv_node", chunk_cv_node)
-    workflow.add_node("generate_embeddings_node", generate_embeddings_node)
-    workflow.add_node("store_faiss_node", store_faiss_node)
     workflow.add_node("generate_queries_node", generate_queries_node)
     workflow.add_node("tavily_search_node", tavily_search_node)
-    workflow.add_node("evaluate_jobs_node", evaluate_jobs_node)
     workflow.add_node("rank_jobs_node", rank_jobs_node)
     workflow.add_node("format_response_node", format_response_node)
 
     # Add edges
     workflow.set_entry_point("parse_cv_node")
     workflow.add_edge("parse_cv_node", "extract_profile_node")
-    workflow.add_edge("extract_profile_node", "chunk_cv_node")
-    workflow.add_edge("chunk_cv_node", "generate_embeddings_node")
-    workflow.add_edge("generate_embeddings_node", "store_faiss_node")
-    workflow.add_edge("store_faiss_node", "generate_queries_node")
+    workflow.add_edge("extract_profile_node", "generate_queries_node")
     workflow.add_edge("generate_queries_node", "tavily_search_node")
-    workflow.add_edge("tavily_search_node", "evaluate_jobs_node")
-    workflow.add_edge("evaluate_jobs_node", "rank_jobs_node")
+    workflow.add_edge("tavily_search_node", "rank_jobs_node")
     workflow.add_edge("rank_jobs_node", "format_response_node")
     workflow.add_edge("format_response_node", END)
 

@@ -9,22 +9,22 @@ from app.utils.helpers import setup_logger
 
 logger = setup_logger("nodes")
 
-def parse_cv_node(state: AgentState):
+async def parse_cv_node(state: AgentState):
     logger.info("Executing parse_cv_node")
     # Assuming text is already extracted and in state["cv_text"]
     return state
 
-def extract_profile_node(state: AgentState):
+async def extract_profile_node(state: AgentState):
     logger.info("Executing extract_profile_node")
     if state.get("candidate_profile"):
         logger.info("Profile already exists in state, skipping extraction.")
         return state
         
-    profile = extract_profile_from_cv(state["cv_text"])
+    profile = await extract_profile_from_cv(state["cv_text"])
     state["candidate_profile"] = profile.model_dump()
     return state
 
-def chunk_cv_node(state: AgentState):
+async def chunk_cv_node(state: AgentState):
     logger.info("Executing chunk_cv_node")
     text = state["cv_text"]
     # Simple chunking by max chars
@@ -32,7 +32,7 @@ def chunk_cv_node(state: AgentState):
     state["chunks"] = chunks
     return state
 
-def generate_embeddings_node(state: AgentState):
+async def generate_embeddings_node(state: AgentState):
     logger.info("Executing generate_embeddings_node")
     chunks = state.get("chunks", [])
     if chunks:
@@ -42,7 +42,7 @@ def generate_embeddings_node(state: AgentState):
         state["embeddings"] = []
     return state
 
-def store_faiss_node(state: AgentState):
+async def store_faiss_node(state: AgentState):
     logger.info("Executing store_faiss_node")
     embeddings = state.get("embeddings", [])
     chunks = state.get("chunks", [])
@@ -50,41 +50,42 @@ def store_faiss_node(state: AgentState):
         vector_store.add_embeddings(embeddings, chunks)
     return state
 
-def generate_queries_node(state: AgentState):
+async def generate_queries_node(state: AgentState):
     logger.info("Executing generate_queries_node")
     profile = CandidateProfile(**state.get("candidate_profile", {}))
-    queries = generate_search_queries(profile)
+    filter_text = state.get("filter", "")
+    queries = await generate_search_queries(profile, filter_text)
     state["search_queries"] = queries
     return state
 
-def tavily_search_node(state: AgentState):
+async def tavily_search_node(state: AgentState):
     logger.info("Executing tavily_search_node")
     queries = state.get("search_queries", [])
     all_jobs = []
     
-    for q in queries[:2]:
-        jobs = search_jobs(q, max_results=3)
+    for q in queries:
+        jobs = search_jobs(q, max_results=20)
         all_jobs.extend(jobs)
     
     unique_jobs = {job.get('url'): job for job in all_jobs if job.get('url')}
     state["jobs"] = list(unique_jobs.values())
     return state
 
-def evaluate_jobs_node(state: AgentState):
+async def evaluate_jobs_node(state: AgentState):
     logger.info("Executing evaluate_jobs_node")
     # Pass through
     state["evaluated_jobs"] = state.get("jobs", [])
     return state
 
-def rank_jobs_node(state: AgentState):
+async def rank_jobs_node(state: AgentState):
     logger.info("Executing rank_jobs_node")
-    jobs = state.get("evaluated_jobs", [])
+    jobs = state.get("jobs", [])
     profile = CandidateProfile(**state.get("candidate_profile", {}))
-    ranked = rank_jobs(jobs, profile)
+    ranked = await rank_jobs(jobs, profile)
     state["ranked_jobs"] = [r.model_dump() for r in ranked]
     return state
 
-def format_response_node(state: AgentState):
+async def format_response_node(state: AgentState):
     logger.info("Executing format_response_node")
     ranked_jobs = state.get("ranked_jobs", [])
     output_format = state.get("output_format", "json")

@@ -1,31 +1,62 @@
 import fitz
 import docx
 import io
-import pytesseract
-from pdf2image import convert_from_bytes
+import logging
+
+# OCR fallback is optional and requires external binaries
+try:
+    import pytesseract
+    from pdf2image import convert_from_bytes
+    HAS_OCR = True
+except ImportError:
+    HAS_OCR = False
+
 from app.utils.helpers import setup_logger
 
 logger = setup_logger("cv_parser")
 
+def _ocr_fallback(file_bytes: bytes, text: str) -> str:
+    """Helper to attempt OCR fallback."""
+    if not HAS_OCR:
+        logger.warning("No text extracted and OCR dependencies are missing.")
+        return text
+    logger.info("No text extracted using PyMuPDF. Attempting OCR fallback...")
+    try:
+        images = convert_from_bytes(file_bytes)
+        for image in images:
+            text += pytesseract.image_to_string(image)
+    except Exception as ocr_e:
+        logger.error(f"OCR fallback failed: {ocr_e}")
+    return text
+
 def extract_text_from_pdf(file_bytes: bytes) -> str:
+    """Extract text from a PDF file.
+
+    Handles encrypted PDFs, resets the stream, and enforces a size limit (5 MB).
+    Falls back to OCR if no text is found and OCR dependencies are installed.
+    """
+    MAX_SIZE = 5 * 1024 * 1024  # 5 MB
+    if len(file_bytes) > MAX_SIZE:
+        logger.error("PDF size exceeds 5 MB limit.")
+        raise ValueError("PDF file is too large; limit is 5 MB.")
     text = ""
     try:
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        # Use BytesIO to ensure the stream is at the start
+        doc = fitz.open(stream=io.BytesIO(file_bytes), filetype="pdf")
+        if doc.is_encrypted:
+            try:
+                doc.authenticate("")
+            except Exception as auth_e:
+                logger.error(f"Failed to decrypt PDF: {auth_e}")
+                raise ValueError("Encrypted PDF cannot be processed.")
         for page in doc:
             text += page.get_text()
-            
-        # If no text was extracted, try OCR fallback
+        # If no text extracted, attempt OCR fallback
         if not text.strip():
-            logger.info("No text extracted using PyMuPDF. Attempting OCR fallback...")
-            try:
-                images = convert_from_bytes(file_bytes)
-                for image in images:
-                    text += pytesseract.image_to_string(image)
-            except Exception as ocr_e:
-                logger.error(f"OCR fallback failed (are Tesseract and Poppler installed on Windows?): {ocr_e}")
-                
+            return _ocr_fallback(file_bytes, text)
     except Exception as e:
-        logger.error(f"Error parsing PDF: {e}")
+        logger.exception("Error extracting text from PDF")
+        raise
     return text
 
 def extract_text_from_docx(file_bytes: bytes) -> str:

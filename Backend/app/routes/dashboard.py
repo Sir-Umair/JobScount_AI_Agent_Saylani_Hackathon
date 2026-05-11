@@ -33,6 +33,7 @@ async def get_dashboard_stats():
     return {
         "has_data": True,
         "profile": profile,
+        "cv_id": str(cv_data.get("_id")),
         "results": results,
         "metrics": {
             "skill_count": skill_count,
@@ -41,3 +42,20 @@ async def get_dashboard_stats():
             "job_count": len(results)
         }
     }
+
+from pydantic import BaseModel
+
+class SaveJobRequest(BaseModel):
+    cv_id: str
+    job: dict
+
+@router.post("/save-job")
+async def save_job(request: SaveJobRequest):
+    await db_service.save_job(request.cv_id, request.job)
+    return {"message": "Job saved successfully"}
+
+@router.get("/saved-jobs/{cv_id}")
+async def get_saved_jobs(cv_id: str):
+    jobs = await db_service.get_saved_jobs_by_cv_id(cv_id)
+    return {"saved_jobs": jobs}
+

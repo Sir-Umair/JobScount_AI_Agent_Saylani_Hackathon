@@ -12,11 +12,12 @@ async def run_agent(request: AgentRequest):
         initial_state = {
             "cv_text": request.cv_text,
             "candidate_profile": request.candidate_profile.model_dump(),
-            "output_format": request.output_format
+            "output_format": request.output_format,
+            "filter": request.filter or ""
         }
         
-        # Execute the workflow
-        result_state = agent_workflow.invoke(initial_state)
+        # Execute the workflow asynchronously
+        result_state = await agent_workflow.ainvoke(initial_state)
         final_results = result_state.get("final_output", [])
 
         # Save to MongoDB
@@ -32,4 +33,6 @@ async def run_agent(request: AgentRequest):
         }
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

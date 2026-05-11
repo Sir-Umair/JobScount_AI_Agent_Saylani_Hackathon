@@ -16,13 +16,17 @@ except Exception as e:
 
 def search_jobs(query: str, max_results: int = 5) -> list[dict]:
     if not tavily_client:
-        logger.warning("Tavily client not initialized. Returning empty results.")
+        logger.warning("Tavily client not initialized. Cannot perform search.")
         return []
 
     try:
         logger.info(f"Searching Tavily for query: {query}")
-        response = tavily_client.search(query=query, search_depth="advanced", max_results=max_results)
-        return response.get("results", [])
+        response = tavily_client.search(query=query, max_results=max_results)
+        results = response.get("results", [])
+        if not results:
+             logger.warning("Tavily returned 0 results.")
+             return []
+        return results
     except Exception as e:
-        logger.error(f"Tavily search failed for query '{query}': {e}")
+        logger.error(f"Tavily search failed for query '{query}': {e}.")
         return []
