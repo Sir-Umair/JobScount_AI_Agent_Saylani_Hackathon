@@ -81,7 +81,8 @@ async def rank_jobs_node(state: AgentState):
     logger.info("Executing rank_jobs_node")
     jobs = state.get("jobs", [])
     profile = CandidateProfile(**state.get("candidate_profile", {}))
-    ranked = await rank_jobs(jobs, profile)
+    filter_text = state.get("filter", "")
+    ranked = await rank_jobs(jobs, profile, filter_text)
     state["ranked_jobs"] = [r.model_dump() for r in ranked]
     return state
 

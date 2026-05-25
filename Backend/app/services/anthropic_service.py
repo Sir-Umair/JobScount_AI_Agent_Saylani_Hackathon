@@ -76,6 +76,7 @@ async def extract_profile_from_cv(cv_text: str) -> CandidateProfile:
     
     Fields to extract (MUST follow these names): 
     - full_name
+    - professional_summary (a concise overview of the candidate's career)
     - skills (list of strings)
     - experience (comprehensive summary)
     - education (summary)
@@ -136,6 +137,7 @@ async def extract_profile_from_cv(cv_text: str) -> CandidateProfile:
         
         return CandidateProfile(
             full_name=name,
+            professional_summary="An experienced professional with strong technical capabilities.",
             skills=found_skills[:8] if found_skills else ["Software Engineering", "Technical Leadership"],
             experience="Professional with extensive experience in the technical domain.",
             education=education,
@@ -195,8 +197,17 @@ async def generate_search_queries(profile: CandidateProfile, filter_text: str = 
             
         return queries
         
-async def evaluate_job(job: dict, profile: CandidateProfile) -> dict:
+async def evaluate_job(job: dict, profile: CandidateProfile, filter_text: str = "") -> dict:
     system_prompt = "You are an AI job evaluator. Evaluate the job against the candidate profile. Return ONLY a valid JSON object."
+    filter_prompt = ""
+    if filter_text:
+        filter_prompt = f"""
+        User Filter Criteria: {filter_text}
+        YOU MUST STRICTLY EVALUATE ALL FILTER CRITERIA inside User Filter Criteria:
+        1. If a target country or region is specified (e.g. 'Pakistan', 'United States', 'Germany'), set meets_filter to false if the job location is clearly in a different country/region and NOT remote.
+        2. If a minimum salary is specified (e.g. 'Salary: $80,000' or 'Salary: Rs. 150,000'), inspect the job description content for any mentioned salary. If a salary range or rate is stated and it falls below the minimum required, you MUST set meets_filter to false.
+        3. If specific technology keywords, skills, seniorities, or job titles (e.g. 'Senior', 'React', 'Lead', 'Remote') are specified in the filter, you MUST set meets_filter to false if the job title or description does not explicitly align with these requirements.
+        """
     prompt = f"""
     Candidate Profile: {profile.model_dump_json()}
     
@@ -205,14 +216,16 @@ async def evaluate_job(job: dict, profile: CandidateProfile) -> dict:
     Company: {job.get('company')}
     Location: {job.get('location', '')}
     Content: {job.get('content', '')[:2000]}
+    {filter_prompt}
     
-    Return pure JSON with keys: extracted_company (string), extracted_location (string), match_percentage (int 0-100), matching_skills (list of strings), missing_skills (list of strings), experience_match (string), education_match (string), reasoning (string), interview_questions (list of 3 strings), weaknesses (list of 2-3 strings identifying candidate skill gaps or weaknesses for this specific role), improvement_suggestions (list of 2-3 actionable tips for the candidate to improve their chances for this role).
+    Return pure JSON with keys: extracted_company (string), extracted_location (string), match_percentage (int 0-100), matching_skills (list of strings), missing_skills (list of strings), experience_match (string), education_match (string), reasoning (string), interview_questions (list of 3 strings), weaknesses (list of 2-3 strings identifying candidate skill gaps or weaknesses for this specific role), improvement_suggestions (list of 2-3 actionable tips for the candidate to improve their chances for this role), meets_filter (boolean, true if it strictly meets all User Filter Criteria or if no filter is provided, false if it violates any user filter criteria including region, salary, technology, seniority, skills, or title constraints).
     """
     
     fallback_res = {
         "extracted_company": job.get('company', 'Unknown Company'), 
         "extracted_location": job.get('location', 'Remote/Global'), 
         "match_percentage": 85, 
+        "meets_filter": True,
         "matching_skills": profile.skills[:2], 
         "missing_skills": [], 
         "experience_match": "High Alignment", 

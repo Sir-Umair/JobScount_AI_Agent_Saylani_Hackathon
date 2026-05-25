@@ -3,6 +3,7 @@ from typing import List, Any, Optional
 
 class CandidateProfile(BaseModel):
     full_name: str = ""
+    professional_summary: str = ""
     skills: List[str] = Field(default_factory=list)
     experience: str = ""
     education: str = ""

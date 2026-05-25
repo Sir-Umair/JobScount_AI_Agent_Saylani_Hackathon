@@ -68,5 +68,10 @@ class DatabaseService:
         docs = await cursor.to_list(length=100)
         return [doc["job"] for doc in docs]
 
+    async def delete_saved_job(self, cv_id: str, job_url: str):
+        if self.db is None:
+            await self.connect()
+        await self.db.saved_jobs.delete_one({"cv_id": cv_id, "job.job_url": job_url})
+
 
 db_service = DatabaseService()

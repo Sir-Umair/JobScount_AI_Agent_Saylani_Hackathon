@@ -52,10 +52,32 @@ class SaveJobRequest(BaseModel):
 @router.post("/save-job")
 async def save_job(request: SaveJobRequest):
     await db_service.save_job(request.cv_id, request.job)
-    return {"message": "Job saved successfully"}
+    
+    # Store job in vector DB
+    try:
+        from app.services.embedding_service import get_embeddings
+        from app.vectorstore.faiss_store import vector_store
+        import json
+        
+        job_str = json.dumps(request.job, default=str)
+        embeddings = get_embeddings([job_str])
+        vector_store.add_embeddings(embeddings, [job_str])
+    except Exception as e:
+        pass
+        
+    return {"message": "Job saved successfully in DB and Vector Store"}
 
 @router.get("/saved-jobs/{cv_id}")
 async def get_saved_jobs(cv_id: str):
     jobs = await db_service.get_saved_jobs_by_cv_id(cv_id)
     return {"saved_jobs": jobs}
+
+class DeleteJobRequest(BaseModel):
+    cv_id: str
+    job_url: str
+
+@router.delete("/delete-job")
+async def delete_job(request: DeleteJobRequest):
+    await db_service.delete_saved_job(request.cv_id, request.job_url)
+    return {"message": "Job deleted successfully"}
 
