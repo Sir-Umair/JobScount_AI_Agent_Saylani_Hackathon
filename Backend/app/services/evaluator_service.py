@@ -70,7 +70,9 @@ def extract_salary_from_job(title: str, content: str) -> int:
         idx = combined.find(kw)
         if idx != -1:
             snippet = combined[max(0, idx - 100):min(len(combined), idx + 200)]
-            numbers = re.findall(r'\b(5000|[1-9]\d{4,7})\b', snippet)
+            # Clean commas between digits in the snippet for robust matching (e.g. 80,000 -> 80000)
+            clean_snippet = re.sub(r'(?<=\d),(?=\d)', '', snippet)
+            numbers = re.findall(r'\b(5000|[1-9]\d{4,7})\b', clean_snippet)
             if numbers:
                 return max(int(n) for n in numbers)
                 
@@ -99,23 +101,51 @@ async def rank_jobs(jobs: list[dict], profile: CandidateProfile, filter_text: st
         else:
             salary_match = re.search(r'(?:[\$£€]|rs\.?)\s*([\d,]+)', filter_text, re.IGNORECASE)
             if salary_match:
-                digits = re.sub(r'[^\d]', '', salary_match.group(2))
+                digits = re.sub(r'[^\d]', '', salary_match.group(1))  # group(1) — only one capture group
                 if digits:
                     min_salary_val = int(digits)
                     
     logger.info(f"Parsed Filter Constraints: Region={target_region}, Min Salary={min_salary_val}")
 
-    for job in jobs:
+    # 1. Quick heuristic scoring to select top 10 most relevant jobs and avoid timeouts
+    def heuristic_score(j: dict) -> float:
+        t = j.get("title", "").lower()
+        c = j.get("content", "").lower()
+        sc = 0.0
+        for skill in profile.skills:
+            if skill.lower() in t:
+                sc += 10.0
+            if skill.lower() in c:
+                sc += 2.0
+        pref_role = profile.preferred_role.lower() if profile.preferred_role else ""
+        if pref_role and pref_role in t:
+            sc += 15.0
+        return sc
+
+    # Sort all jobs by heuristic score and evaluate the top 10 concurrently
+    jobs_with_scores = [(j, heuristic_score(j)) for j in jobs]
+    jobs_with_scores.sort(key=lambda x: x[1], reverse=True)
+    top_jobs = [item[0] for item in jobs_with_scores[:10]]
+
+    import asyncio
+    semaphore = asyncio.Semaphore(4)
+
+    async def evaluate_single_job(job_item):
+        async with semaphore:
+            try:
+                return await evaluate_job(job_item, profile, filter_text)
+            except Exception as e:
+                logger.error(f"Error evaluating job '{job_item.get('title')}': {e}")
+                return {}
+
+    # Run evaluations concurrently to speed up response from minutes to seconds
+    eval_results = await asyncio.gather(*(evaluate_single_job(j) for j in top_jobs))
+
+    for job, eval_result in zip(top_jobs, eval_results):
         title = job.get("title", "Unknown Title")
         content = job.get("content", "")
         
-        # Try to evaluate with Claude, but don't block if it fails
-        try:
-            eval_result = await evaluate_job(job, profile, filter_text)
-        except Exception:
-            eval_result = {}
-            
-        meets_filter = eval_result.get("meets_filter", True)
+        meets_filter = eval_result.get("meets_filter", True) if eval_result else True
         if filter_text and not meets_filter:
             logger.info(f"Skipping job {title} as it does not meet the strict AI filter criteria.")
             continue

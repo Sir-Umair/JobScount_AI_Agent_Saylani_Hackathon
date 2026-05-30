@@ -1,47 +1,67 @@
 from fastapi import APIRouter, HTTPException
 from app.services.database_service import db_service
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.get("/dashboard-stats")
 async def get_dashboard_stats():
-    # 1. Fetch latest CV
-    cv_data = await db_service.get_latest_cv()
-    # 2. Fetch latest agent results
-    results_data = await db_service.get_latest_results()
-    
-    if not cv_data:
+    try:
+        # 1. Fetch latest CV
+        cv_data = await db_service.get_latest_cv()
+        # 2. Fetch latest agent results
+        results_data = await db_service.get_latest_results()
+        
+        if not cv_data:
+            return {
+                "has_data": False,
+                "message": "No CV data found. Please upload a CV first."
+            }
+        
+        profile = cv_data.get("candidate_profile", {})
+        results = results_data.get("results", []) if results_data else []
+        
+        # Safety: ensure results is always a list
+        if not isinstance(results, list):
+            results = []
+
+        # Flatten nested list if agent wrapped results in another list
+        if results and isinstance(results[0], list):
+            results = results[0]
+
+        # Filter to only valid dict job entries
+        results = [r for r in results if isinstance(r, dict)]
+
+        # Calculate dynamic metrics
+        skill_count = len(profile.get("skills", []))
+        
+        if results:
+            top_match = max(j.get("match_percentage", 0) for j in results)
+            avg_match = sum(j.get("match_percentage", 0) for j in results) / len(results)
+        else:
+            top_match = 0
+            avg_match = 0
+        
+        return {
+            "has_data": True,
+            "profile": profile,
+            "cv_id": str(cv_data.get("_id")),
+            "results": results,
+            "metrics": {
+                "skill_count": skill_count,
+                "top_match": round(top_match, 1),
+                "avg_match": round(avg_match, 1),
+                "job_count": len(results)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Dashboard stats error: {e}", exc_info=True)
+        # Return graceful empty state instead of 500 crash
         return {
             "has_data": False,
-            "message": "No CV data found. Please upload a CV first."
+            "message": f"Could not load dashboard data: {str(e)}"
         }
-    
-    profile = cv_data.get("candidate_profile", {})
-    results = results_data.get("results", []) if results_data else []
-    
-    # Calculate some dynamic metrics
-    skill_count = len(profile.get("skills", []))
-    
-    # Safety check: ensure results is a list of dicts
-    if isinstance(results, list) and len(results) > 0 and isinstance(results[0], dict):
-        top_match = max([j.get("match_percentage", 0) for j in results])
-        avg_match = sum([j.get("match_percentage", 0) for j in results]) / len(results)
-    else:
-        top_match = 0
-        avg_match = 0
-    
-    return {
-        "has_data": True,
-        "profile": profile,
-        "cv_id": str(cv_data.get("_id")),
-        "results": results,
-        "metrics": {
-            "skill_count": skill_count,
-            "top_match": top_match,
-            "avg_match": round(avg_match, 1),
-            "job_count": len(results)
-        }
-    }
 
 from pydantic import BaseModel
 

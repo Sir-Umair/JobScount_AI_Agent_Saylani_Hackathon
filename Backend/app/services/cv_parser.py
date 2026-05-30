@@ -63,8 +63,16 @@ def extract_text_from_docx(file_bytes: bytes) -> str:
     text = ""
     try:
         doc = docx.Document(io.BytesIO(file_bytes))
+        # Extract text from paragraphs
         for para in doc.paragraphs:
             text += para.text + "\n"
+        # Extract text from tables to prevent losing table-based CV content
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        text += para.text + " "
+                    text += "\n"
     except Exception as e:
         logger.error(f"Error parsing DOCX: {e}")
     return text

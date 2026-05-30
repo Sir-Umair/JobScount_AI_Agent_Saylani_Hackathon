@@ -61,14 +61,24 @@ async def generate_queries_node(state: AgentState):
 async def tavily_search_node(state: AgentState):
     logger.info("Executing tavily_search_node")
     queries = state.get("search_queries", [])
-    all_jobs = []
     
-    for q in queries:
-        jobs = search_jobs(q, max_results=20)
-        all_jobs.extend(jobs)
+    # Run all Tavily searches concurrently in a thread pool (search_jobs is synchronous)
+    import asyncio
+    loop = asyncio.get_event_loop()
+    
+    async def run_search(q: str):
+        try:
+            return await loop.run_in_executor(None, lambda: search_jobs(q, max_results=20))
+        except Exception as e:
+            logger.error(f"Tavily search failed for '{q}': {e}")
+            return []
+    
+    results = await asyncio.gather(*(run_search(q) for q in queries))
+    all_jobs = [job for batch in results for job in batch]
     
     unique_jobs = {job.get('url'): job for job in all_jobs if job.get('url')}
     state["jobs"] = list(unique_jobs.values())
+    logger.info(f"Collected {len(state['jobs'])} unique jobs from {len(queries)} concurrent searches")
     return state
 
 async def evaluate_jobs_node(state: AgentState):
