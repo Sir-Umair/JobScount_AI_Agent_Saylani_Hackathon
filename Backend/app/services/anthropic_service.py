@@ -7,13 +7,14 @@ from app.utils.helpers import setup_logger
 logger = setup_logger("anthropic_service")
 
 # Multi-model fallback strategy for maximum reliability during hackathons
-# Multi-model fallback strategy for maximum reliability during hackathons
 MODELS_TO_TRY = [
+    "claude-3-5-sonnet-latest",
     "claude-3-5-sonnet-20241022",
     "claude-3-5-sonnet-20240620",
+    "claude-3-5-haiku-latest",
+    "claude-3-haiku-20240307",
     "claude-3-opus-20240229",
     "claude-3-sonnet-20240229",
-    "claude-3-haiku-20240307",
     "claude-2.1"
 ]
 

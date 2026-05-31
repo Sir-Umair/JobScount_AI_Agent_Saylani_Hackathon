@@ -14,8 +14,13 @@ def check_region_match(job_location: str, job_content: str, target_region: str) 
     loc = job_location.lower()
     text = job_content.lower()
     
+    # Remote jobs are ALWAYS compatible with any target region since they can be done from anywhere!
+    is_remote_job = 'remote' in loc or 'work from home' in loc or 'wfh' in loc or 'remote' in text
+    if is_remote_job:
+        return True
+        
     if target == 'remote' or target == 'remote global':
-        return 'remote' in loc or 'work from home' in loc or 'wfh' in loc or 'remote' in text
+        return is_remote_job
         
     if target == 'pakistan':
         return 'pakistan' in loc or 'pk' in loc or 'pakistan' in text or 'karachi' in loc or 'lahore' in loc or 'islamabad' in loc

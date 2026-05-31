@@ -54,6 +54,7 @@ async def generate_queries_node(state: AgentState):
     logger.info("Executing generate_queries_node")
     profile = CandidateProfile(**state.get("candidate_profile", {}))
     filter_text = state.get("filter", "")
+    logger.info(f"Using filter: {filter_text}")
     queries = await generate_search_queries(profile, filter_text)
     state["search_queries"] = queries
     return state
