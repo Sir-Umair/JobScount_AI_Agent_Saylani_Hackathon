@@ -135,17 +135,19 @@ flowchart TB
 
 ---
 
-## API Endpoints
+## 📡 API Overview
 
-[API Table]
+JobScout AI exposes a RESTful API for resume processing, autonomous job discovery, career coaching, analytics, and job management. The backend validates all requests using Pydantic models and provides structured JSON responses. Core endpoints include CV upload and indexing (`/upload-cv`), agent-driven job search (`/run-agent`), RAG-powered career coaching (`/chat`), dashboard analytics (`/dashboard-stats`), saved job management (`/save-job`, `/saved-jobs/{cv_id}`, `/delete-job`), and system monitoring (`/health`). Interactive API documentation is available through FastAPI Swagger UI at `http://localhost:8000/docs`.
+
 
 ---
 
 ## Installation
 
-[Backend Setup]
+## ⚙️ Installation
 
-[Frontend Setup]
+Set up the backend by creating a Python virtual environment, installing the required dependencies from `requirements.txt`, and configuring the necessary environment variables for Anthropic, Tavily, and MongoDB. Start the FastAPI server to launch the API services. Next, navigate to the frontend directory, install the Node.js dependencies, configure the frontend environment variables, and run the Next.js development server. Once both services are running, the application will be accessible locally with full support for resume analysis, autonomous job scouting, semantic search, and AI-powered career coaching.
+
 
 ---
 
