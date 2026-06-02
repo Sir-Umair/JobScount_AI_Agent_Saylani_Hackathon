@@ -22,6 +22,83 @@ resume intelligence, semantic search, and personalized career coaching.
 ## Architecture
 
 [Mermaid Diagram]
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TB
+
+    User[👤 User]
+
+    subgraph Frontend["Frontend Layer"]
+        NextJS["Next.js 16 + React 19"]
+        Dashboard["Analytics Dashboard"]
+        ChatUI["Career Coach UI"]
+        ScoutUI["Job Scouting UI"]
+    end
+
+    subgraph Backend["FastAPI Backend"]
+        Upload["/upload-cv"]
+        Agent["/run-agent"]
+        Chat["/chat"]
+        Stats["/dashboard-stats"]
+    end
+
+    subgraph Processing["Resume Processing Pipeline"]
+        Parser["PDF / DOCX Parser"]
+        OCR["OCR Recovery Engine"]
+        Profile["Candidate Profile Extraction"]
+    end
+
+    subgraph AgentLayer["LangGraph Agent Engine"]
+        ParseNode["Parse CV"]
+        QueryNode["Generate Queries"]
+        SearchNode["Search Jobs"]
+        RankNode["Rank Matches"]
+        FormatNode["Format Results"]
+    end
+
+    subgraph AI["AI & Retrieval Layer"]
+        Claude["Claude 3.5 Sonnet"]
+        Embed["Sentence Transformers"]
+        FAISS["FAISS Vector Store"]
+    end
+
+    subgraph Data["Persistence Layer"]
+        Mongo["MongoDB"]
+    end
+
+    Tavily["Tavily Search API"]
+
+    User --> NextJS
+
+    NextJS --> Upload
+    NextJS --> Agent
+    NextJS --> Chat
+    NextJS --> Stats
+
+    Upload --> Parser
+    Parser --> OCR
+    OCR --> Profile
+
+    Profile --> Mongo
+    Profile --> Embed
+    Embed --> FAISS
+
+    Agent --> ParseNode
+    ParseNode --> QueryNode
+    QueryNode --> SearchNode
+    SearchNode --> Tavily
+    SearchNode --> RankNode
+    RankNode --> FormatNode
+    FormatNode --> Mongo
+
+    Chat --> FAISS
+    Chat --> Claude
+
+    Stats --> Mongo
+
+    Mongo --> NextJS
+```
 
 ---
 
