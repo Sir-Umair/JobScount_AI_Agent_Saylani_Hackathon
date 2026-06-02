@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 💻 Frontend Architecture
 
-## Getting Started
+The JobScout AI frontend is built with **Next.js 16**, **React 19**, **TypeScript**, and **Tailwind CSS v4**, providing a responsive interface for resume analysis, job discovery, career coaching, and analytics visualization. The client communicates with the FastAPI backend through a centralized API service layer and presents real-time job recommendations, candidate insights, and AI-generated career guidance through a modern dashboard experience.
 
-First, run the development server:
+### Key Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+* Resume upload and validation
+* Real-time job discovery interface
+* Interactive job recommendation cards
+* AI Career Coach chat experience
+* Analytics dashboard with profile metrics
+* Saved jobs management
+* Responsive design across devices
+
+### Frontend Architecture
+
+```mermaid
+graph TD
+
+    User[User]
+
+    User --> Home[Job Discovery Page]
+    User --> Dashboard[Analytics Dashboard]
+    User --> Chat[Career Coach]
+
+    subgraph Components
+        FileUpload[File Upload]
+        JobCard[Job Cards]
+        ProfileCard[Profile Card]
+    end
+
+    subgraph Services
+        API[API Service Layer]
+        Axios[Axios Client]
+    end
+
+    subgraph Backend
+        FastAPI[FastAPI Backend]
+    end
+
+    Home --> FileUpload
+    Home --> JobCard
+    Dashboard --> ProfileCard
+
+    FileUpload --> API
+    JobCard --> API
+    Chat --> API
+
+    API --> Axios
+    Axios --> FastAPI
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+src/
+├── app/                # Application routes and pages
+├── components/         # Reusable UI components
+├── services/           # API communication layer
+├── lib/                # Shared utilities and helpers
+├── types/              # TypeScript interfaces and types
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Core Components
 
-## Learn More
+| Component         | Responsibility                             |
+| ----------------- | ------------------------------------------ |
+| `FileUpload.tsx`  | Resume upload and validation               |
+| `JobCard.tsx`     | Display job recommendations and saved jobs |
+| `ProfileCard.tsx` | Render candidate profile information       |
+| `AuthGuard.tsx`   | Route and session protection               |
+| `api.ts`          | Centralized backend communication layer    |
 
-To learn more about Next.js, take a look at the following resources:
+### Frontend Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+* Next.js 16 (App Router)
+* React 19
+* TypeScript
+* Tailwind CSS v4
+* Framer Motion
+* Recharts
+* Axios
+* Sonner
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Local Development
 
-## Deploy on Vercel
+Create a `.env.local` file:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Install dependencies and start the development server:
+
+```bash
+npm install
+npm run dev
+```
+
+The application will be available at:
+
+```text
+http://localhost:3000
+```
